@@ -1,21 +1,20 @@
-# Docker Compose RAG Demo
+# Full Containerized RAG Application
 
 ## Overview
 
-This project is a Docker-based Python application that demonstrates how FastAPI, Ollama, and ChromaDB can work together using Docker Compose.
+This project is a fully containerized Retrieval-Augmented Generation (RAG) application built with Docker Compose, FastAPI, Streamlit, ChromaDB, and Ollama.
 
-The application uses a centralized `Settings` class to manage environment variables, making it easy to change models, database paths, and application settings without modifying the source code.
+Users can index text documents, ask questions about their content, and receive AI-generated answers with source citations. Docker Compose manages the three services and allows them to communicate over an internal network.
 
 ## Features
 
-- FastAPI backend with API and health-check endpoints
-- Ollama integration for running local language models
-- Persistent ChromaDB document collection
-- Docker Compose for managing multiple services
-- Centralized environment configuration using `config.py`
-- `.env` and `.env.example` for configuration management
-- Persistent Docker volumes for database and model storage
-- Environment variable validation and default values
+- **Streamlit Frontend:** Interactive interface for indexing documents and asking questions.
+- **FastAPI Backend:** Handles document processing, semantic search, and AI requests.
+- **Ollama:** Runs local language models for embeddings and answer generation.
+- **ChromaDB:** Stores document embeddings and retrieves relevant information.
+- **Source Citations:** Displays the documents used to generate answers.
+- **Centralized Configuration:** Uses environment variables managed through `config.py`.
+- **Persistent Storage:** Docker volumes preserve indexed documents and downloaded models.
 
 ## Project Structure
 
@@ -26,133 +25,169 @@ compose-demo/
 ├── .gitignore
 ├── docker-compose.yml
 ├── README.md
-└── backend/
-    ├── .dockerignore
+├── backend/
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── requirements.txt
+│   ├── config.py
+│   ├── main.py
+│   └── docs/
+│       └── sample.txt
+└── frontend/
     ├── Dockerfile
-    ├── config.py
-    ├── main.py
     ├── requirements.txt
-    └── docs/
-        └── sample.txt
+    └── app.py
 ```
 
 ## Configuration
 
-Application settings are managed through the `Settings` class in `backend/config.py`.
-
-The `.env` file contains the configuration used by Docker Compose.
-
-Example:
+The application uses a `.env` file to manage settings.
 
 ```dotenv
 OLLAMA_URL=http://ollama:11434
 MODEL_NAME=llama3.2:1b
+EMBED_MODEL=nomic-embed-text
 CHROMA_PATH=/app/chroma_data
+DOCS_PATH=/app/docs
 MAX_RESULTS=5
-CONFIDENCE_THRESHOLD=0.75
+CONFIDENCE_THRESHOLD=0.65
 DEBUG=false
 ```
 
-The application supports the following settings:
-
-| Variable | Purpose |
-| --- | --- |
-| `OLLAMA_URL` | Address of the Ollama service |
-| `MODEL_NAME` | Configured language model |
-| `CHROMA_PATH` | Persistent ChromaDB storage location |
-| `MAX_RESULTS` | Maximum number of future retrieval results |
-| `CONFIDENCE_THRESHOLD` | Threshold reserved for future retrieval filtering |
-| `DEBUG` | Enables or disables debug mode |
-
-The `.env` file is excluded from Git and Docker build contexts, while `.env.example` provides a safe configuration template.
+The `.env.example` file provides a configuration template without exposing sensitive information.
 
 ## Getting Started
 
-**Requirements:**
+### Requirements
+
 - Docker Desktop
 - Docker Compose
-- An internet connection for the initial image and model downloads
+- Internet connection for the initial downloads
 
-### 1. Configure the Environment
+### 1. Configure Environment Variables
 
-Create a `.env` file from the example:
+Create your `.env` file:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-### 2. Build and Start the Application
+### 2. Build and Start the Containers
+
+Run from the root project directory:
 
 ```powershell
 docker compose up --build -d
 ```
 
-Check the running containers:
+Verify the services:
 
 ```powershell
 docker compose ps
 ```
 
-### 3. Download the Ollama Model
+Three containers should be running: `backend`, `frontend`, and `ollama`.
 
-If the model has not already been downloaded:
+### 3. Download Ollama Models
+
+Download the chat model:
 
 ```powershell
 docker compose exec ollama ollama pull llama3.2:1b
 ```
 
-Verify the installed models:
+Download the embedding model:
+
+```powershell
+docker compose exec ollama ollama pull nomic-embed-text
+```
+
+Verify installation:
 
 ```powershell
 docker compose exec ollama ollama list
 ```
 
-### 4. Test the API
+The models are stored in a persistent Docker volume and do not need to be downloaded after every restart.
 
-Open the following URLs:
+## Using the Application
 
-**Application:** http://localhost:8000
+### Streamlit Frontend
 
-**Health check:** http://localhost:8000/health
+Open:
 
-**Swagger documentation:** http://localhost:8000/docs
+http://localhost:8501
 
-You can also test the health endpoint from PowerShell:
+1. Check that the backend and Ollama are connected.
+2. Click **Re-index Documents**.
+3. Wait for the documents to be processed.
+4. Enter a question about the indexed documents.
+5. Click **Ask Question**.
+6. Review the generated answer and source citations.
+
+### FastAPI Backend
+
+API documentation:
+
+http://localhost:8000/docs
+
+Health endpoint:
+
+http://localhost:8000/health
+
+Available endpoints:
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/` | GET | Displays application and model information |
+| `/health` | GET | Checks Ollama connectivity and document count |
+| `/ingest` | POST | Indexes text documents into ChromaDB |
+| `/ask` | POST | Retrieves relevant context and generates an AI response |
+
+Test the health endpoint in PowerShell:
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/health
 ```
 
-The health endpoint reports Ollama connectivity, the configured model, and the number of documents in ChromaDB.
+## How the RAG Pipeline Works
 
-## Testing Environment Variables
+1. The user clicks **Re-index Documents**.
+2. FastAPI reads the `.txt` files inside `backend/docs/`.
+3. Documents are divided into smaller chunks.
+4. Ollama generates embeddings using `nomic-embed-text`.
+5. ChromaDB stores the chunks and embeddings.
+6. The user submits a question through Streamlit.
+7. Ollama converts the question into an embedding.
+8. ChromaDB retrieves relevant chunks using similarity search.
+9. FastAPI sends the retrieved context and question to `llama3.2:1b`.
+10. Ollama generates an answer, which Streamlit displays along with source references.
 
-To verify that environment variable changes take effect:
+The assistant is instructed to answer using the retrieved document context rather than inventing unsupported information.
 
-1. Open `.env`.
-2. Change `MODEL_NAME` to another value.
-3. Save the file.
-4. Recreate the backend container:
+## Docker Compose Services
+
+| Service | Technology | Port |
+| --- | --- | --- |
+| Frontend | Streamlit | 8501 |
+| Backend | FastAPI + ChromaDB | 8000 |
+| AI Model | Ollama | 11434 (internal only) |
+
+The frontend communicates with FastAPI using `http://backend:8000`.
+
+The backend communicates with Ollama using `http://ollama:11434`.
+
+Docker Compose handles communication between the containers through its internal network.
+
+## Managing the Containers
+
+Check container status:
 
 ```powershell
-docker compose up -d --no-deps --force-recreate backend
+docker compose ps
 ```
 
-5. Run:
-
-```powershell
-Invoke-RestMethod http://localhost:8000/
-```
-
-The returned model name should match the new value in `.env`.
-
-Changing a setting requires recreating the container because restarting an existing container does not reload its environment variables.
-
-If you want to use a different model for actual AI requests, that model must also be downloaded into Ollama.
-
-## Managing Containers
-
-View logs:
+View application logs:
 
 ```powershell
 docker compose logs -f
@@ -164,18 +199,33 @@ Stop the application:
 docker compose down
 ```
 
-The named Docker volumes preserve ChromaDB data and downloaded Ollama models after the containers are stopped or recreated.
+Docker volumes preserve the ChromaDB database and downloaded Ollama models even when the containers are removed.
 
-## Current Limitations
+## Troubleshooting
 
-The current version initializes ChromaDB and verifies connectivity to Ollama, but it does not yet implement a complete retrieval-augmented generation pipeline.
+| Issue | Suggested Fix |
+| --- | --- |
+| Docker connection error | Ensure Docker Desktop is running |
+| Streamlit won't load | Check `docker compose logs frontend` |
+| Backend unavailable | Check `docker compose logs backend` |
+| Ollama unavailable | Verify the Ollama container is running |
+| Model not found | Pull the required model into the Ollama container |
+| No documents indexed | Click Re-index Documents |
+| No relevant results | Verify the documents contain relevant information and adjust the similarity threshold |
 
-The `sample.txt` file provides example documentation but is not automatically ingested into ChromaDB.
+## Future Improvements
 
-Document ingestion, semantic search, and AI-generated responses using retrieved context are potential future improvements.
+Potential improvements include:
+
+- Uploading documents directly through Streamlit.
+- Supporting PDF and Markdown documents.
+- Adding conversational chat history.
+- Displaying retrieved document excerpts.
+- Improving the frontend design.
+- Adding retrieval evaluation and more advanced guardrails.
 
 ## What I Learned
 
-This project helped me understand how to manage application configuration through environment variables instead of hardcoding values. I also practiced connecting multiple Docker containers, using persistent volumes, and verifying that configuration changes take effect when containers are recreated.
+This project helped me understand how multiple Docker containers can work together to create a complete AI application. I practiced connecting Streamlit to FastAPI, using Ollama for local language models, and storing document embeddings with ChromaDB.
 
-Centralizing the settings makes the application easier to maintain and prepares it for adding more functionality in the future.
+I also learned how environment variables, persistent volumes, and Docker Compose make it easier to configure and manage a multi-service application.
