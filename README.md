@@ -1,47 +1,62 @@
-# Full Containerized RAG Application
+# Containerized RAG Application
 
 ## Overview
 
-This project is a fully containerized Retrieval-Augmented Generation (RAG) application built with Docker Compose, FastAPI, Streamlit, ChromaDB, and Ollama.
+This project is a fully containerized Retrieval-Augmented Generation (RAG) application built with FastAPI, Streamlit, ChromaDB, Ollama, and Docker Compose.
 
-Users can index text documents, ask questions about their content, and receive AI-generated answers with source citations. Docker Compose manages the three services and allows them to communicate over an internal network.
+Users can index documents, ask questions about their content, and receive AI-generated answers with source citations. The project also includes automated testing and a GitHub Actions CI pipeline to verify that the backend works and both Docker images build successfully.
 
 ## Features
 
-- **Streamlit Frontend:** Interactive interface for indexing documents and asking questions.
-- **FastAPI Backend:** Handles document processing, semantic search, and AI requests.
-- **Ollama:** Runs local language models for embeddings and answer generation.
-- **ChromaDB:** Stores document embeddings and retrieves relevant information.
-- **Source Citations:** Displays the documents used to generate answers.
-- **Centralized Configuration:** Uses environment variables managed through `config.py`.
-- **Persistent Storage:** Docker volumes preserve indexed documents and downloaded models.
+- **Streamlit:** Interactive interface for indexing documents and asking questions.
+- **FastAPI:** Backend API for document ingestion, retrieval, and AI-generated answers.
+- **Ollama:** Runs local language models for embeddings and text generation.
+- **ChromaDB:** Stores document embeddings for semantic search.
+- **Docker Compose:** Manages the backend, frontend, and Ollama containers.
+- **Environment Variables:** Centralized configuration using `config.py` and `.env`.
+- **Persistent Storage:** Docker volumes preserve document data and downloaded models.
+- **Pytest:** Automated tests for the backend API.
+- **GitHub Actions:** Automatically runs tests and verifies Docker builds on pushes and pull requests.
 
 ## Project Structure
 
 ```text
-compose-demo/
-├── .env
+containerized-rag-app/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── backend/
+│   ├── tests/
+│   │   ├── __init__.py
+│   │   └── test_api.py
+│   ├── docs/
+│   │   └── sample.txt
+│   ├── main.py
+│   ├── config.py
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── .dockerignore
+├── frontend/
+│   ├── app.py
+│   ├── requirements.txt
+│   └── Dockerfile
+├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
-├── docker-compose.yml
-├── README.md
-├── backend/
-│   ├── Dockerfile
-│   ├── .dockerignore
-│   ├── requirements.txt
-│   ├── config.py
-│   ├── main.py
-│   └── docs/
-│       └── sample.txt
-└── frontend/
-    ├── Dockerfile
-    ├── requirements.txt
-    └── app.py
+└── README.md
 ```
 
 ## Configuration
 
-The application uses a `.env` file to manage settings.
+The application uses environment variables to manage its settings.
+
+Create a `.env` file from `.env.example`:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Example configuration:
 
 ```dotenv
 OLLAMA_URL=http://ollama:11434
@@ -54,43 +69,33 @@ CONFIDENCE_THRESHOLD=0.65
 DEBUG=false
 ```
 
-The `.env.example` file provides a configuration template without exposing sensitive information.
+The `.env` file is excluded from Git to prevent local configuration and potential credentials from being committed.
 
-## Getting Started
+## Running the Application
 
 ### Requirements
 
-- Docker Desktop
-- Docker Compose
-- Internet connection for the initial downloads
+- Docker Desktop with Docker Compose
+- Internet connection for downloading Docker images and Ollama models
+- Python 3.11 for running backend tests locally
 
-### 1. Configure Environment Variables
+### 1. Start Docker Containers
 
-Create your `.env` file:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-### 2. Build and Start the Containers
-
-Run from the root project directory:
+From the project root:
 
 ```powershell
 docker compose up --build -d
 ```
 
-Verify the services:
+Verify that all three containers are running:
 
 ```powershell
 docker compose ps
 ```
 
-Three containers should be running: `backend`, `frontend`, and `ollama`.
+### 2. Download Ollama Models
 
-### 3. Download Ollama Models
-
-Download the chat model:
+Download the language model:
 
 ```powershell
 docker compose exec ollama ollama pull llama3.2:1b
@@ -108,124 +113,156 @@ Verify installation:
 docker compose exec ollama ollama list
 ```
 
-The models are stored in a persistent Docker volume and do not need to be downloaded after every restart.
+### 3. Open the Application
 
-## Using the Application
+**Streamlit Frontend:** http://localhost:8501
 
-### Streamlit Frontend
+**FastAPI Documentation:** http://localhost:8000/docs
 
-Open:
+**Health Endpoint:** http://localhost:8000/health
 
-http://localhost:8501
+In Streamlit, click **Re-index Documents**, enter a question, and review the generated answer and source citations.
 
-1. Check that the backend and Ollama are connected.
-2. Click **Re-index Documents**.
-3. Wait for the documents to be processed.
-4. Enter a question about the indexed documents.
-5. Click **Ask Question**.
-6. Review the generated answer and source citations.
-
-### FastAPI Backend
-
-API documentation:
-
-http://localhost:8000/docs
-
-Health endpoint:
-
-http://localhost:8000/health
-
-Available endpoints:
+## API Endpoints
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
-| `/` | GET | Displays application and model information |
-| `/health` | GET | Checks Ollama connectivity and document count |
-| `/ingest` | POST | Indexes text documents into ChromaDB |
-| `/ask` | POST | Retrieves relevant context and generates an AI response |
+| `/` | GET | Returns application information |
+| `/health` | GET | Checks Ollama connectivity and application status |
+| `/stats` | GET | Returns the indexed document count and model information |
+| `/ingest` | POST | Processes and indexes documents |
+| `/ask` | POST | Retrieves relevant documents and generates an answer |
 
-Test the health endpoint in PowerShell:
+Test the health endpoint using PowerShell:
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/health
 ```
 
+## Running Tests Locally
+
+The backend includes automated tests written with pytest.
+
+### 1. Set Up Python 3.11
+
+If Python 3.11 is not installed:
+
+```powershell
+py install 3.11
+```
+
+Navigate into the backend folder:
+
+```powershell
+cd backend
+```
+
+Create and activate a virtual environment:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+### 2. Install Dependencies
+
+```powershell
+python -m pip install -r requirements.txt
+python -m pip install pytest==8.3.5 httpx==0.27.2
+```
+
+### 3. Run Tests
+
+```powershell
+python -m pytest tests/test_api.py -v
+```
+
+The tests verify that:
+
+1. The root endpoint returns HTTP 200.
+2. The health endpoint returns HTTP 200 and the expected fields.
+3. The stats endpoint returns HTTP 200 and includes `document_count`.
+
+Tests use a temporary ChromaDB directory and mock Ollama responses, so a live model is not required.
+
+## GitHub Actions CI
+
+The project includes a GitHub Actions workflow located at:
+
+```text
+.github/workflows/ci.yml
+```
+
+The workflow runs automatically when code is pushed to `main` or a pull request is opened.
+
+It contains two jobs:
+
+**Backend Tests**
+
+- Sets up Python 3.11.
+- Installs backend dependencies.
+- Runs pytest against the backend tests.
+
+**Docker Build Verification**
+
+- Builds the FastAPI backend Docker image.
+- Builds the Streamlit frontend Docker image.
+- Verifies that both images were created successfully.
+
+CI results can be viewed under the **Actions** tab in the GitHub repository.
+
 ## How the RAG Pipeline Works
 
-1. The user clicks **Re-index Documents**.
-2. FastAPI reads the `.txt` files inside `backend/docs/`.
-3. Documents are divided into smaller chunks.
-4. Ollama generates embeddings using `nomic-embed-text`.
-5. ChromaDB stores the chunks and embeddings.
-6. The user submits a question through Streamlit.
-7. Ollama converts the question into an embedding.
-8. ChromaDB retrieves relevant chunks using similarity search.
-9. FastAPI sends the retrieved context and question to `llama3.2:1b`.
-10. Ollama generates an answer, which Streamlit displays along with source references.
+1. Documents are read from `backend/docs/`.
+2. FastAPI splits the documents into smaller chunks.
+3. Ollama generates embeddings using `nomic-embed-text`.
+4. ChromaDB stores the document embeddings.
+5. A user asks a question through Streamlit.
+6. Ollama generates an embedding for the question.
+7. ChromaDB retrieves relevant document chunks.
+8. FastAPI builds a prompt using the retrieved context.
+9. Ollama generates an answer using `llama3.2:1b`.
+10. Streamlit displays the answer and source citations.
 
-The assistant is instructed to answer using the retrieved document context rather than inventing unsupported information.
+## Useful Docker Commands
 
-## Docker Compose Services
-
-| Service | Technology | Port |
-| --- | --- | --- |
-| Frontend | Streamlit | 8501 |
-| Backend | FastAPI + ChromaDB | 8000 |
-| AI Model | Ollama | 11434 (internal only) |
-
-The frontend communicates with FastAPI using `http://backend:8000`.
-
-The backend communicates with Ollama using `http://ollama:11434`.
-
-Docker Compose handles communication between the containers through its internal network.
-
-## Managing the Containers
-
-Check container status:
+Check running containers:
 
 ```powershell
 docker compose ps
 ```
 
-View application logs:
+View logs:
 
 ```powershell
 docker compose logs -f
 ```
 
-Stop the application:
+Rebuild and restart:
+
+```powershell
+docker compose up --build -d
+```
+
+Stop containers:
 
 ```powershell
 docker compose down
 ```
 
-Docker volumes preserve the ChromaDB database and downloaded Ollama models even when the containers are removed.
-
-## Troubleshooting
-
-| Issue | Suggested Fix |
-| --- | --- |
-| Docker connection error | Ensure Docker Desktop is running |
-| Streamlit won't load | Check `docker compose logs frontend` |
-| Backend unavailable | Check `docker compose logs backend` |
-| Ollama unavailable | Verify the Ollama container is running |
-| Model not found | Pull the required model into the Ollama container |
-| No documents indexed | Click Re-index Documents |
-| No relevant results | Verify the documents contain relevant information and adjust the similarity threshold |
+Named Docker volumes preserve ChromaDB data and Ollama models after containers are stopped.
 
 ## Future Improvements
 
-Potential improvements include:
-
-- Uploading documents directly through Streamlit.
-- Supporting PDF and Markdown documents.
-- Adding conversational chat history.
-- Displaying retrieved document excerpts.
-- Improving the frontend design.
-- Adding retrieval evaluation and more advanced guardrails.
+- Support uploading PDF and Markdown documents.
+- Add conversational chat history.
+- Improve retrieval accuracy and source citations.
+- Add more integration tests for document ingestion and retrieval.
+- Expand CI to include additional code-quality checks.
+- Improve the Streamlit interface.
 
 ## What I Learned
 
-This project helped me understand how multiple Docker containers can work together to create a complete AI application. I practiced connecting Streamlit to FastAPI, using Ollama for local language models, and storing document embeddings with ChromaDB.
+This project helped me understand how to build and test a multi-container AI application. I practiced connecting Streamlit, FastAPI, ChromaDB, and Ollama through Docker Compose while using environment variables and persistent volumes.
 
-I also learned how environment variables, persistent volumes, and Docker Compose make it easier to configure and manage a multi-service application.
+I also learned how to create automated API tests with pytest and configure GitHub Actions to run tests and verify Docker builds. This makes it easier to catch problems when changes are pushed to GitHub.
