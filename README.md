@@ -1,94 +1,121 @@
 # Docker Compose RAG Demo
 
-A Docker Compose project that runs a FastAPI backend and an Ollama service together in separate containers.
+## Overview
 
-The backend uses ChromaDB for persistent document storage and communicates with Ollama over Docker’s internal network.
+This project is a Docker-based Python application that demonstrates how FastAPI, Ollama, and ChromaDB can work together using Docker Compose.
+
+The application uses a centralized `Settings` class to manage environment variables, making it easy to change models, database paths, and application settings without modifying the source code.
 
 ## Features
 
-- FastAPI backend
-- Ollama running in its own container
-- ChromaDB persistent storage
-- Docker Compose service orchestration
-- Environment variable configuration
-- Persistent Docker volumes
-- Health check endpoint
-- Local API access through port 8000
+- FastAPI backend with API and health-check endpoints
+- Ollama integration for running local language models
+- Persistent ChromaDB document collection
+- Docker Compose for managing multiple services
+- Centralized environment configuration using `config.py`
+- `.env` and `.env.example` for configuration management
+- Persistent Docker volumes for database and model storage
+- Environment variable validation and default values
 
 ## Project Structure
 
 ```text
 compose-demo/
-├── docker-compose.yml
 ├── .env
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+├── README.md
 └── backend/
+    ├── .dockerignore
     ├── Dockerfile
+    ├── config.py
     ├── main.py
     ├── requirements.txt
     └── docs/
         └── sample.txt
 ```
 
-## Environment Variables
+## Configuration
 
-Example `.env` file:
+Application settings are managed through the `Settings` class in `backend/config.py`.
 
-```text
-MODEL_NAME=llama3.2:1b
+The `.env` file contains the configuration used by Docker Compose.
+
+Example:
+
+```dotenv
 OLLAMA_URL=http://ollama:11434
+MODEL_NAME=llama3.2:1b
+CHROMA_PATH=/app/chroma_data
+MAX_RESULTS=5
+CONFIDENCE_THRESHOLD=0.75
+DEBUG=false
 ```
 
-The backend can reach Ollama using the Compose service name `ollama`.
+The application supports the following settings:
 
-## Start the Project
+| Variable | Purpose |
+| --- | --- |
+| `OLLAMA_URL` | Address of the Ollama service |
+| `MODEL_NAME` | Configured language model |
+| `CHROMA_PATH` | Persistent ChromaDB storage location |
+| `MAX_RESULTS` | Maximum number of future retrieval results |
+| `CONFIDENCE_THRESHOLD` | Threshold reserved for future retrieval filtering |
+| `DEBUG` | Enables or disables debug mode |
 
-Build and start the containers in detached mode:
+The `.env` file is excluded from Git and Docker build contexts, while `.env.example` provides a safe configuration template.
+
+## Getting Started
+
+**Requirements:**
+- Docker Desktop
+- Docker Compose
+- An internet connection for the initial image and model downloads
+
+### 1. Configure the Environment
+
+Create a `.env` file from the example:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+### 2. Build and Start the Application
 
 ```powershell
 docker compose up --build -d
 ```
 
-Check running services:
+Check the running containers:
 
 ```powershell
 docker compose ps
 ```
 
-## Pull the Ollama Model
+### 3. Download the Ollama Model
 
-The first time the project runs, pull the model into the Ollama container:
+If the model has not already been downloaded:
 
 ```powershell
 docker compose exec ollama ollama pull llama3.2:1b
 ```
 
-Verify the model:
+Verify the installed models:
 
 ```powershell
 docker compose exec ollama ollama list
 ```
 
-The Ollama model is stored in a persistent Docker volume, so it does not need to be downloaded every time the containers restart.
+### 4. Test the API
 
-## Test the API
+Open the following URLs:
 
-Open:
+**Application:** http://localhost:8000
 
-```text
-http://localhost:8000
-```
+**Health check:** http://localhost:8000/health
 
-Health endpoint:
-
-```text
-http://localhost:8000/health
-```
-
-Swagger UI:
-
-```text
-http://localhost:8000/docs
-```
+**Swagger documentation:** http://localhost:8000/docs
 
 You can also test the health endpoint from PowerShell:
 
@@ -96,16 +123,59 @@ You can also test the health endpoint from PowerShell:
 Invoke-RestMethod http://localhost:8000/health
 ```
 
-## Stop the Project
+The health endpoint reports Ollama connectivity, the configured model, and the number of documents in ChromaDB.
 
-Stop and remove the containers with:
+## Testing Environment Variables
+
+To verify that environment variable changes take effect:
+
+1. Open `.env`.
+2. Change `MODEL_NAME` to another value.
+3. Save the file.
+4. Recreate the backend container:
+
+```powershell
+docker compose up -d --no-deps --force-recreate backend
+```
+
+5. Run:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/
+```
+
+The returned model name should match the new value in `.env`.
+
+Changing a setting requires recreating the container because restarting an existing container does not reload its environment variables.
+
+If you want to use a different model for actual AI requests, that model must also be downloaded into Ollama.
+
+## Managing Containers
+
+View logs:
+
+```powershell
+docker compose logs -f
+```
+
+Stop the application:
 
 ```powershell
 docker compose down
 ```
 
-The Docker volumes remain unless they are explicitly removed.
+The named Docker volumes preserve ChromaDB data and downloaded Ollama models after the containers are stopped or recreated.
 
-## Purpose
+## Current Limitations
 
-This project demonstrates how Docker Compose can coordinate multiple services in one application. FastAPI and Ollama run independently but communicate over Docker’s internal network, while ChromaDB and Ollama data are preserved using Docker volumes.
+The current version initializes ChromaDB and verifies connectivity to Ollama, but it does not yet implement a complete retrieval-augmented generation pipeline.
+
+The `sample.txt` file provides example documentation but is not automatically ingested into ChromaDB.
+
+Document ingestion, semantic search, and AI-generated responses using retrieved context are potential future improvements.
+
+## What I Learned
+
+This project helped me understand how to manage application configuration through environment variables instead of hardcoding values. I also practiced connecting multiple Docker containers, using persistent volumes, and verifying that configuration changes take effect when containers are recreated.
+
+Centralizing the settings makes the application easier to maintain and prepares it for adding more functionality in the future.

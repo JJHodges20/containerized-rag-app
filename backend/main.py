@@ -1,41 +1,30 @@
-import os
-
 import chromadb
 import requests
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from config import settings
 
 
 app = FastAPI(
     title="RAG API",
-    version="1.0.0",
+    version="1.1.0",
+    debug=settings.debug,
 )
-
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Configuration from environment variables
-OLLAMA_URL = os.getenv(
-    "OLLAMA_URL",
-    "http://localhost:11434",
-)
+# Initialize ChromaDB using centralized settings.
 
-MODEL = os.getenv(
-    "MODEL_NAME",
-    "llama3.2:1b",
-)
-
-
-# Persistent ChromaDB storage
 client = chromadb.PersistentClient(
-    path="/app/chroma_data"
+    path=settings.chroma_path
 )
 
 collection = client.get_or_create_collection(
@@ -47,7 +36,10 @@ collection = client.get_or_create_collection(
 def root():
     return {
         "message": "RAG API running in Docker",
-        "model": MODEL,
+        "model": settings.model_name,
+        "max_results": settings.max_results,
+        "confidence_threshold": settings.confidence_threshold,
+        "debug": settings.debug,
     }
 
 
@@ -57,25 +49,21 @@ def health():
 
     try:
         response = requests.get(
-            f"{OLLAMA_URL}/api/tags",
+            f"{settings.ollama_url}/api/tags",
             timeout=3,
         )
 
-        ollama_ok = (
-            response.status_code == 200
-        )
+        ollama_ok = response.status_code == 200
 
     except requests.RequestException:
         pass
 
-
     return {
         "status": "healthy",
         "ollama": (
-            "connected"
-            if ollama_ok
-            else "unavailable"
+            "connected" if ollama_ok else "unavailable"
         ),
-        "ollama_url": OLLAMA_URL,
+        "ollama_url": settings.ollama_url,
+        "model": settings.model_name,
         "documents": collection.count(),
     }

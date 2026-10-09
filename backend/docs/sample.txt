@@ -1,0 +1,96 @@
+# Docker Compose RAG Application — Project Documentation
+
+## Project Overview
+
+This project demonstrates how to configure and run a Python application using Docker Compose. It combines a FastAPI backend, ChromaDB for document storage, and Ollama for running local language models.
+
+The application uses a centralized Settings class to manage configuration through environment variables. This allows developers to change application settings without modifying the Python source code.
+
+## FastAPI
+
+FastAPI is a Python framework used to build web APIs. In this project, FastAPI provides endpoints that allow users to interact with the backend and check whether its services are running correctly.
+
+The `/` endpoint displays basic application information, including the configured language model.
+
+The `/health` endpoint checks the application's connection to Ollama and reports how many documents are stored in ChromaDB.
+
+## Docker Compose
+
+Docker Compose allows multiple containers to run together as one application.
+
+This project uses two services:
+
+- **Backend:** Runs the FastAPI application and connects to ChromaDB.
+- **Ollama:** Hosts the local language model used by the application.
+
+Docker Compose creates an internal network that allows the backend to communicate with Ollama using the address `http://ollama:11434`.
+
+The backend is accessible from the host computer at `http://localhost:8000`.
+
+## Ollama
+
+Ollama allows language models to run locally rather than relying on an external cloud API.
+
+The default model configured for this project is `llama3.2:1b`.
+
+The model is stored in a persistent Docker volume, allowing it to remain available after containers are stopped or restarted.
+
+The configured model can be changed using the `MODEL_NAME` environment variable.
+
+## ChromaDB
+
+ChromaDB is a database commonly used in retrieval-augmented generation applications. It can store document embeddings and perform similarity searches to retrieve relevant information.
+
+This project initializes a persistent ChromaDB collection named `documents`.
+
+The database location is controlled by the `CHROMA_PATH` environment variable.
+
+The current demonstration provides basic database initialization and health monitoring. Document ingestion and semantic retrieval can be added as future functionality.
+
+## Centralized Configuration
+
+Application configuration is managed through `config.py`, which contains a Settings class.
+
+The class reads environment variables and provides default values when necessary.
+
+The configuration settings include:
+
+- `OLLAMA_URL`: Address of the Ollama service.
+- `MODEL_NAME`: Language model configured for the application.
+- `CHROMA_PATH`: Directory used to store ChromaDB data.
+- `MAX_RESULTS`: Maximum number of search results for future retrieval functionality.
+- `CONFIDENCE_THRESHOLD`: Configurable threshold intended for future retrieval filtering.
+- `DEBUG`: Enables or disables FastAPI debug mode.
+
+Centralizing these settings makes the application easier to maintain and configure.
+
+## Environment Files
+
+The `.env` file contains the actual environment variables used by Docker Compose.
+
+The `.env.example` file documents the expected configuration without exposing private credentials.
+
+The `.env` file is excluded from Git and Docker build contexts using `.gitignore` and `.dockerignore`.
+
+Docker Compose loads the settings into the backend container using `env_file`.
+
+When environment variables change, the backend container must be recreated for those changes to take effect.
+
+## Persistent Storage
+
+Docker volumes allow application data to survive container restarts and recreation.
+
+This project uses two named volumes:
+
+- `chroma_data`: Stores the persistent ChromaDB collection.
+- `ollama_data`: Stores downloaded Ollama models.
+
+Running `docker compose down` stops and removes the containers but preserves these named volumes by default.
+
+## Future Improvements
+
+The application could eventually support document ingestion, semantic search, retrieval-augmented generation, and AI-generated answers grounded in retrieved documents.
+
+A complete RAG pipeline would retrieve relevant document chunks from ChromaDB, provide those chunks to Ollama as context, and generate a response based on the retrieved information.
+
+The centralized configuration system would allow developers to adjust model selection and retrieval settings without changing application code.
