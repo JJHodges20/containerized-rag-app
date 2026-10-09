@@ -298,3 +298,11 @@ def ask_question(request: QuestionRequest):
             for index, match in enumerate(matches, start=1)
         ],
     }
+
+@app.get("/stats")
+def stats():
+    return {
+        "document_count": collection.count(),
+        "chat_model": settings.model_name,
+        "embedding_model": settings.embed_model,
+    }
